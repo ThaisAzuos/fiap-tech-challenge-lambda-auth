@@ -1,0 +1,4 @@
+# Python dependencies for Lambda Auth
+boto3==1.28.0
+pytest==7.4.0
+requests==2.31.0

@@ -1,0 +1,32 @@
+name: Build & Test Lambda
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest tests/ -v --cov
+
+      - name: Build Docker image
+        run: docker build -t oficina-lambda-auth:${{ github.sha }} .
+
+      - name: Push to ECR
+        if: github.ref == 'refs/heads/main'
+        run: |
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+          docker tag oficina-lambda-auth:${{ github.sha }} $ECR_REGISTRY/oficina-lambda-auth:v1.0.0-${{ github.sha }}
+          docker push $ECR_REGISTRY/oficina-lambda-auth:v1.0.0-${{ github.sha }}
