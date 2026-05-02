@@ -1,21 +1,69 @@
-name: Deploy Lambda
+name: Deploy Lambda Auth
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v3
-      - uses: hashicorp/setup-terraform@v2
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          terraform_version: 1.5.0
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
       - name: Terraform Init
-        run: terraform init
+        working-directory: ./terraform
+        run: terraform init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
+
+      - name: Terraform Validate
+        working-directory: ./terraform
+        run: terraform validate
+
       - name: Terraform Plan
-        run: terraform plan -var-file=envs/prod.tfvars
+        working-directory: ./terraform
+        run: |
+          terraform plan \
+            -var="db_host=${{ secrets.DB_HOST }}" \
+            -var="db_user=${{ secrets.DB_USER }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="db_name=${{ secrets.DB_NAME }}"
+
       - name: Terraform Apply
-        run: terraform apply -var-file=envs/prod.tfvars
+        working-directory: ./terraform
+        run: |
+          terraform apply -auto-approve \
+            -var="db_host=${{ secrets.DB_HOST }}" \
+            -var="db_user=${{ secrets.DB_USER }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="db_name=${{ secrets.DB_NAME }}"
+
+      - name: Get API Gateway URL
+        id: api-url
+        working-directory: ./terraform
+        run: |
+          API_URL=$(terraform output -raw api_gateway_url)
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+
+      - name: Comment API URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 Lambda Auth deployed successfully!\n\nAPI Gateway URL: ${{ steps.api-url.outputs.api_url }}/authenticate`
+            })
