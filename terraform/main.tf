@@ -6,13 +6,16 @@ resource "aws_lambda_function" "auth" {
 
   environment {
     variables = {
-      VERSION     = "1.0.0"
-      DB_HOST     = var.db_host
-      DB_NAME     = var.db_name
-      DB_USER     = var.db_user
-      DB_PASSWORD = var.db_password
+      VERSION         = "1.0.0"
+      DB_HOST         = var.db_host
+      DB_NAME         = var.db_name
+      DB_USER         = var.db_user
+      DB_PASSWORD     = var.db_password
+      JWT_PRIVATE_KEY = var.jwt_private_key # Adicionado a chave privada JWT
     }
   }
+
+  layers = [var.newrelic_lambda_layer_arn] # Adicionado o New Relic Lambda Layer
 
   timeout     = 30
   memory_size = 256
