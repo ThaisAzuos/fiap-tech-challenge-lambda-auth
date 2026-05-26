@@ -27,7 +27,7 @@ class DBClient:
             conn = self._get_connection()
             cursor = conn.cursor()
 
-            query = "SELECT id, nome FROM cliente WHERE cpf = %s"
+            query = "SELECT cpf, nome FROM clientes WHERE cpf = %s"
             cursor.execute(query, (cpf,))
             result = cursor.fetchone()
 
