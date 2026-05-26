@@ -1,0 +1,27 @@
+# Chaves RSA — nunca commitar
+private_key.pem
+public_key.pem
+*.pem
+
+# Ambiente local
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+.terraform.lock.hcl
+
+# IDE
+.idea/
+.vscode/
