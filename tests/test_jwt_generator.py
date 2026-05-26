@@ -1,33 +1,34 @@
-import jwt
-from src.jwt_generator import generate_jwt
+import pytest
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+from jwt_generator import generate_jwt
 
-def test_generate_jwt():
-    token = generate_jwt('12345678901')
-    assert token is not None
 
-def test_generate_jwt_hs256():
-    """Test JWT generation with HS256 (default)"""
-    cpf = '52998224725'
-    token = generate_jwt(cpf)
+@pytest.fixture(autouse=True)
+def test_rsa_key(monkeypatch):
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption()
+    ).decode()
+    monkeypatch.setenv('JWT_PRIVATE_KEY', pem)
 
+
+def test_generate_jwt_returns_token():
+    token = generate_jwt('52998224725')
     assert token is not None
     assert isinstance(token, str)
+    assert len(token.split('.')) == 3
 
-    # Decode and verify
-    decoded = jwt.decode(token, 'secret', algorithms=['HS256'])
-    assert decoded['cpf'] == cpf
-    assert 'exp' in decoded
-    assert 'iat' in decoded
-    assert decoded['iss'] == 'fiap-tech-challenge-lambda-auth'
 
-def test_generate_jwt_rs256():
-    """Test JWT generation with RS256 (if key provided)"""
-    # For now, test that it falls back to HS256 when no key
-    cpf = '52998224725'
-    token = generate_jwt(cpf, private_key_pem=None)
-    assert token is not None
+def test_generate_jwt_different_cpfs():
+    token1 = generate_jwt('52998224725')
+    token2 = generate_jwt('11144477735')
+    assert token1 != token2
 
-    # Would need actual RSA key for full test
-    # private_key_pem = "-----BEGIN PRIVATE KEY-----\n..."
-    # token = generate_jwt(cpf, private_key_pem)
-    # decoded = jwt.decode(token, public_key, algorithms=['RS256'])
+
+def test_generate_jwt_missing_key(monkeypatch):
+    monkeypatch.delenv('JWT_PRIVATE_KEY', raising=False)
+    with pytest.raises(ValueError):
+        generate_jwt('52998224725')

@@ -1,5 +1,5 @@
 import pytest
-from src.cpf_validator import validate_cpf
+from cpf_validator import validate_cpf
 
 def test_valid_cpf():
     """Test valid CPF"""
