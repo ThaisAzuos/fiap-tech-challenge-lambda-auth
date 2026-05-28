@@ -71,7 +71,8 @@ jobs:
             -var "db_password=${{ secrets.DB_PASSWORD }}" \
             -var "jwt_private_key=${{ secrets.JWT_PRIVATE_KEY }}" \
             -var "region=${{ env.AWS_REGION }}" \
-            -var "environment=prod"
+            -var "environment=prod" \
+            -var "aws_account_id=${{ secrets.AWS_ACCOUNT_ID }}"
         working-directory: terraform
 
       - name: Upload Terraform Plan
