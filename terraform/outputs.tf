@@ -3,5 +3,5 @@ output "lambda_arn" {
 }
 
 output "api_gateway_url" {
-  value = aws_api_gateway_deployment.auth.invoke_url
+  value = aws_api_gateway_stage.auth.invoke_url
 }
