@@ -62,10 +62,25 @@ jobs:
         run: terraform validate -no-color
         working-directory: terraform
 
-      - name: Importar recursos existentes (se houver)
+      - name: Limpar recursos existentes no AWS
+        run: |
+          aws lambda remove-permission \
+            --function-name fiap-tech-challenge-lambda-auth \
+            --statement-id AllowAPIGatewayInvoke \
+            2>/dev/null || true
+          for API_ID in $(aws apigateway get-rest-apis \
+            --query "items[?name=='fiap-tech-challenge-lambda-auth'].id" \
+            --output text 2>/dev/null); do
+            if [ -n "$API_ID" ] && [ "$API_ID" != "None" ]; then
+              echo "Deletando API Gateway: $API_ID"
+              aws apigateway delete-rest-api --rest-api-id "$API_ID" 2>/dev/null || true
+              sleep 30
+            fi
+          done
+
+      - name: Importar Lambda function existente
         run: |
           terraform import aws_lambda_function.auth fiap-tech-challenge-lambda-auth 2>/dev/null || true
-          terraform import aws_api_gateway_rest_api.auth fiap-tech-challenge-lambda-auth 2>/dev/null || true
         env:
           TF_VAR_db_host: ${{ secrets.DB_HOST }}
           TF_VAR_db_name: ${{ secrets.DB_NAME }}
