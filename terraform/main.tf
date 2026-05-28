@@ -1,16 +1,14 @@
-data "aws_iam_role" "lab_role" {
-  name = "LabRole"
-}
-
-data "aws_ecr_repository" "auth" {
-  name = "fiap-tech-challenge-lambda-auth"
+locals {
+  lab_role_arn    = "arn:aws:iam::${var.aws_account_id}:role/LabRole"
+  ecr_registry    = "${var.aws_account_id}.dkr.ecr.${var.region}.amazonaws.com"
+  ecr_repository  = "fiap-tech-challenge-lambda-auth"
 }
 
 resource "aws_lambda_function" "auth" {
   function_name = "fiap-tech-challenge-lambda-auth"
   package_type  = "Image"
-  image_uri     = "${data.aws_ecr_repository.auth.repository_url}:latest"
-  role          = data.aws_iam_role.lab_role.arn
+  image_uri     = "${local.ecr_registry}/${local.ecr_repository}:latest"
+  role          = local.lab_role_arn
 
   environment {
     variables = {

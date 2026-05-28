@@ -2,6 +2,11 @@ variable "region" {
   default = "us-east-1"
 }
 
+variable "aws_account_id" {
+  description = "AWS Account ID"
+  type        = string
+}
+
 variable "environment" {
   default = "dev"
 }
