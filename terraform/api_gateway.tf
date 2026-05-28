@@ -76,7 +76,16 @@ resource "aws_api_gateway_deployment" "auth" {
     aws_api_gateway_integration.auth_options
   ]
   rest_api_id = aws_api_gateway_rest_api.auth.id
-  stage_name  = "prod"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_api_gateway_stage" "auth" {
+  deployment_id = aws_api_gateway_deployment.auth.id
+  rest_api_id   = aws_api_gateway_rest_api.auth.id
+  stage_name    = "prod"
 }
 
 # Lambda permission for API Gateway
