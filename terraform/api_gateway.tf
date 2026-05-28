@@ -63,6 +63,11 @@ resource "aws_api_gateway_integration_response" "auth_options" {
   http_method = aws_api_gateway_method.auth_options.http_method
   status_code = "200"
 
+  depends_on = [
+    aws_api_gateway_integration.auth_options,
+    aws_api_gateway_method_response.auth_options,
+  ]
+
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
     "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
