@@ -35,9 +35,7 @@ variable "jwt_private_key" {
 }
 
 variable "newrelic_lambda_layer_arn" {
-  description = "ARN of the New Relic Lambda Layer for Python"
+  description = "ARN of the New Relic Lambda Layer for Python (optional)"
   type        = string
-  # Exemplo de default para us-east-1 e Python 3.9 (verificar a versão correta no New Relic)
-  # default     = "arn:aws:lambda:us-east-1:451483290750:layer:NewRelicPython39:XX"
-  # O valor exato do ARN deve ser obtido da documentação do New Relic para a região e runtime corretos.
+  default     = ""
 }
