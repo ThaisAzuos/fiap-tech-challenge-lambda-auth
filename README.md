@@ -1,87 +1,173 @@
 # fiap-tech-challenge-lambda-auth
 
-## 🎯 Propósito
-Este repositório implementa uma função AWS Lambda serverless para autenticação de usuários via CPF e geração de JSON Web Tokens (JWT) com algoritmo RS256. A função é exposta através de um AWS API Gateway.
+## Propósito
 
-## 🛠️ Tech Stack
-- **Linguagem**: Python 3.9+
-- **Framework**: AWS Lambda
-- **Serviços AWS**: Lambda, API Gateway, ECR, IAM
-- **Ferramentas**: Terraform, Docker
-- **Bibliotecas Python**: `psycopg2` (para PostgreSQL), `pyjwt`, `cryptography`
-- **Observabilidade**: New Relic Lambda Layer
+Função AWS Lambda serverless que autentica usuários por CPF e gera JSON Web Tokens (JWT RS256). Exposta via AWS API Gateway REST, é consumida pela aplicação Spring Boot para autenticação sem estado.
 
-## 📊 Arquitetura
+**Faz parte do Tech Challenge Fase 3 — FIAP SOAT.**
+
+## Arquitetura
+
 ```mermaid
 graph TD
-    User[Usuário] --> |POST /authenticate {cpf}| APIGateway[API Gateway]
-    APIGateway --> Lambda[AWS Lambda: fiap-tech-challenge-lambda-auth]
-    Lambda --> |Consulta CPF| RDS[RDS PostgreSQL]
-    Lambda --> |Gera JWT RS256| Lambda
-    Lambda --> |Retorna {token, expiry}| APIGateway
-    Lambda -- Logs & Metrics --> NewRelic[New Relic Platform]
+    App[Spring Boot - EKS] -->|POST /authenticate - cpf| APIGW[API Gateway REST]
+    APIGW --> Lambda[Lambda fiap-tech-challenge-lambda-auth]
+    Lambda -->|Valida CPF| RDS[(RDS PostgreSQL)]
+    Lambda -->|JWT RS256 assinado| APIGW
+    APIGW -->|token + expiry| App
+    Lambda -->|Logs e Métricas| CW[CloudWatch]
 ```
 
-## 🚀 Quick Start (Setup Local)
-Para desenvolver e testar a função Lambda localmente, você pode usar Docker.
+## Tech Stack
 
-1.  **Pré-requisitos**: Docker, Python 3.9+, `pip`, `aws-cli`.
-2.  **Instalar dependências**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-3.  **Configurar variáveis de ambiente**: Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis (para testes locais, não para produção):
-    ```
-    DB_HOST=your_local_db_host
-    DB_NAME=your_db_name
-    DB_USER=your_db_user
-    DB_PASSWORD=your_db_password
-    JWT_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
-    ```
-    **Nota**: A `JWT_PRIVATE_KEY` deve ser a chave privada RSA completa, incluindo os cabeçalhos `BEGIN/END` e com quebras de linha (`\n`).
-4.  **Executar testes**:
-    ```bash
-    pytest tests/
-    ```
-5.  **Build e execução local (via Docker)**:
-    ```bash
-    docker build -t lambda-auth .
-    docker run -p 9000:8080 -e DB_HOST=$DB_HOST -e DB_NAME=$DB_NAME -e DB_USER=$DB_USER -e DB_PASSWORD=$DB_PASSWORD -e JWT_PRIVATE_KEY="$JWT_PRIVATE_KEY" lambda-auth:latest
-    ```
-    Após iniciar o container, você pode testar a função Lambda localmente enviando uma requisição POST para `http://localhost:9000/2015-03-31/functions/function/invocations`.
+- **Python 3.11** — runtime da Lambda
+- **psycopg2** — conexão com PostgreSQL
+- **PyJWT + cryptography** — geração de JWT RS256
+- **Docker + Amazon ECR** — imagem container para a Lambda
+- **Terraform** — provisionamento de Lambda, API Gateway e ECR
+- **AWS API Gateway** (REST) — endpoint público `/authenticate`
 
-## 📋 Deploy (CI/CD com GitHub Actions)
-Este repositório utiliza GitHub Actions para automação de CI/CD.
-O workflow `main.yml` (localizado em `.github/workflows/main.yml`) executa as seguintes etapas:
-1.  **`build-and-test`**:
-    *   Instala dependências Python.
-    *   Executa testes unitários (`pytest`).
-    *   Autentica no AWS ECR.
-    *   Constrói a imagem Docker da Lambda e a envia para o ECR.
-2.  **`terraform-plan`**:
-    *   Inicializa o Terraform.
-    *   Valida a configuração do Terraform.
-    *   Gera um plano de execução do Terraform, passando variáveis sensíveis via GitHub Secrets.
-3.  **`terraform-apply`**:
-    *   **Aprovação Manual**: Para deploys na branch `main` (ou ambiente `production`), é necessária uma aprovação manual (configurada via GitHub Environments).
-    *   Aplica o plano gerado, provisionando ou atualizando a função Lambda e o API Gateway na AWS.
+## Estrutura do Projeto
 
-**Configuração Necessária no GitHub:**
-*   **Secrets**: Configure os seguintes GitHub Secrets no seu repositório:
-    *   `AWS_ACCOUNT_ID`: O ID da sua conta AWS.
-    *   `DB_HOST`: Host do seu RDS PostgreSQL (obtido do output do `fiap-tech-challenge-db-terraform`).
-    *   `DB_NAME`: Nome do banco de dados.
-    *   `DB_USER`: Usuário do banco de dados.
-    *   `DB_PASSWORD`: Senha do banco de dados.
-    *   `JWT_PRIVATE_KEY`: Sua chave privada RS256 para assinar JWTs.
-    *   `NEWRELIC_LAMBDA_LAYER_ARN`: O ARN completo do New Relic Lambda Layer para Python na sua região e versão de runtime (ex: `arn:aws:lambda:us-east-1:451483290750:layer:NewRelicPython39:XX`).
-*   **IAM Roles**: Crie os seguintes IAM Roles na AWS e configure-os para serem assumidos pelo GitHub Actions:
-    *   `github-actions-lambda-auth-ecr-role`: Com permissões para ECR.
-    *   `github-actions-lambda-auth-terraform-role`: Com permissões para gerenciar Lambda, API Gateway, IAM, CloudWatch.
-*   **Environments**: Crie um ambiente chamado `production` (ou o nome que você usou no workflow) nas configurações do seu repositório GitHub e adicione "Required reviewers" para aprovação manual.
+```
+.
+├── src/
+│   ├── handler.py        ← Entrypoint da Lambda
+│   ├── auth_service.py   ← Lógica de autenticação (valida CPF, gera JWT)
+│   ├── db_client.py      ← Conexão com RDS PostgreSQL
+│   ├── jwt_generator.py  ← Assina o JWT com RS256 (private_key.pem)
+│   ├── cpf_validator.py  ← Validação de CPF (dígitos verificadores)
+│   └── logger.py         ← Logging estruturado
+├── tests/
+│   ├── test_handler.py
+│   ├── test_jwt_generator.py
+│   └── test_cpf_validator.py
+├── terraform/            ← IaC para Lambda + API Gateway + ECR
+├── scripts/              ← build.sh, deploy.sh, test-local.sh
+├── Dockerfile            ← Imagem para deploy na AWS
+├── Dockerfile.local      ← Imagem para testes locais
+├── local_server.py       ← Servidor HTTP local para testes
+└── requirements.txt
+```
 
-## 🔗 Links Relacionados
-- [Aplicação Principal (fiap-tech-challenge-app)](../fiap-tech-challenge-app/README.md)
-- [Infraestrutura Kubernetes (fiap-tech-challenge-k8s-terraform)](../fiap-tech-challenge-k8s-terraform/README.md)
-- [Banco de Dados Terraform (fiap-tech-challenge-db-terraform)](../fiap-tech-challenge-db-terraform/README.md)
-- [Documentação Geral da Fase 3](../../docs/Fase03/QuickStart-Fase3d-3e.md)
+## Pré-requisitos
+
+- [Python 3.11](https://www.python.org/)
+- [Docker](https://www.docker.com/)
+- [Terraform CLI](https://developer.hashicorp.com/terraform/downloads) >= 1.0
+- [AWS CLI](https://aws.amazon.com/cli/) configurado
+- Par de chaves RSA gerado (veja abaixo)
+- Banco RDS PostgreSQL provisionado ([db-terraform](https://github.com/ThaisAzuos/fiap-tech-challenge-db-terraform))
+
+> **Segurança**: `private_key.pem` e `public_key.pem` nunca devem ser commitados. Estão protegidos pelo `.gitignore`. A chave privada é passada como Secret do GitHub (`JWT_PRIVATE_KEY`) e a pública como Secret do app (`JWT_PUBLIC_KEY`).
+
+## Gerar o par de chaves RSA
+
+```bash
+# Gerar chave privada (2048 bits)
+openssl genrsa -out private_key.pem 2048
+
+# Extrair chave pública
+openssl rsa -in private_key.pem -pubout -out public_key.pem
+```
+
+- `private_key.pem` → usado pela Lambda para **assinar** o JWT
+- `public_key.pem` → usado pelo Spring Boot para **validar** o JWT
+
+## Quick Start (Local)
+
+```bash
+# 1. Instalar dependências
+pip install -r requirements.txt pytest
+
+# 2. Executar testes unitários
+pytest tests/ -v
+
+# 3. Subir servidor local (simula o API Gateway)
+DB_HOST=localhost DB_NAME=oficina DB_USER=oficina_admin \
+DB_PASSWORD=SuaSenha JWT_PRIVATE_KEY="$(cat private_key.pem)" \
+python local_server.py
+```
+
+Testar localmente:
+
+```bash
+curl -X POST http://localhost:8080/authenticate \
+  -H "Content-Type: application/json" \
+  -d '{"cpf": "12345678901"}'
+```
+
+## API
+
+**Endpoint:** `POST /authenticate`
+
+**Request:**
+```json
+{ "cpf": "12345678901" }
+```
+
+**Response (200):**
+```json
+{
+  "token": "eyJ...",
+  "expiry": "2026-05-29T23:00:00Z"
+}
+```
+
+**Response (401):**
+```json
+{ "error": "CPF not found or invalid" }
+```
+
+## URL de Produção
+
+```
+https://gs9sfvolq0.execute-api.us-east-1.amazonaws.com/prod/authenticate
+```
+
+## Deploy CI/CD (GitHub Actions)
+
+O workflow `.github/workflows/main.yml` possui 2 jobs executados em sequência:
+
+1. **build-and-test** — instala dependências Python, executa `pytest tests/ -v`
+2. **terraform-deploy** — executado somente em push para `main`:
+   - Configura credenciais AWS
+   - `terraform init` com backend S3
+   - `terraform validate`
+   - Remove permissão Lambda e API Gateways orfãos (evita conflito no re-deploy)
+   - `terraform import` da Lambda existente (idempotência)
+   - `terraform apply -auto-approve`
+
+**Secrets necessários no repositório:**
+
+| Secret | Descrição |
+|--------|-----------|
+| `AWS_ACCESS_KEY_ID` | Credencial AWS |
+| `AWS_SECRET_ACCESS_KEY` | Credencial AWS |
+| `AWS_SESSION_TOKEN` | Token de sessão (AWS Academy) |
+| `AWS_ACCOUNT_ID` | ID da conta AWS |
+| `TF_STATE_BUCKET` | Nome do bucket S3 para o Terraform state |
+| `DB_HOST` | Endpoint do RDS (output `db_address` do db-terraform) |
+| `DB_NAME` | Nome do banco de dados |
+| `DB_USER` | Usuário do banco de dados |
+| `DB_PASSWORD` | Senha do banco de dados |
+| `JWT_PRIVATE_KEY` | Chave privada RSA (conteúdo do `private_key.pem`) |
+
+> Para atualizar as credenciais AWS em todos os repositórios de uma vez, use o script `C:\pos-fiap\fase3\update-aws-secrets.ps1`.
+
+## Custo Estimado (AWS Academy)
+
+| Recurso | Custo |
+|---------|-------|
+| Lambda (primeiras 1M invocações/mês) | gratuito |
+| API Gateway (primeiras 1M chamadas/mês) | gratuito |
+| ECR (armazenamento imagem ~50 MB) | < $0.01/mês |
+| **Total estimado** | **~$0/mês** |
+
+## Repositórios Relacionados
+
+| Repo | Descrição |
+|------|-----------|
+| [fiap-tech-challenge-db-terraform](https://github.com/ThaisAzuos/fiap-tech-challenge-db-terraform) | Banco RDS — provisione antes deste repo |
+| [fiap-tech-challenge-k8s-terraform](https://github.com/ThaisAzuos/fiap-tech-challenge-k8s-terraform) | Cluster EKS onde o app Spring Boot roda |
+| [fiap-tech-challenge-app](https://github.com/ThaisAzuos/fiap-tech-challenge-app) | Aplicação Spring Boot — consome este endpoint |
