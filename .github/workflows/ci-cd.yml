@@ -2,7 +2,9 @@ name: Lambda Auth CI/CD
 
 on:
   push:
-    branches: [main]
+    # feature/** roda os testes na branch de trabalho; o job build-and-push
+    # continua restrito a main pelo seu próprio "if", então nada é publicado.
+    branches: [main, 'feature/**']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -26,8 +28,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt pytest-cov
 
+      # --cov-fail-under reprova o job abaixo de 80%, alinhando o gate ao dos
+      # serviços Java. Sem essa flag o relatório é apenas informativo.
       - name: Run tests
-        run: python -m pytest tests/ -v --cov=src --cov-report=xml --cov-report=term
+        run: python -m pytest tests/ -v --cov=src --cov-report=xml --cov-report=term --cov-fail-under=80
 
   build-and-push:
     name: Build & Push to ECR
