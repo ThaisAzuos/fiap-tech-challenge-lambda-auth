@@ -1,5 +1,7 @@
 # fiap-tech-challenge-lambda-auth
 
+> **Fase 4 (Tech Challenge):** este repositório é mantido como **Auth Service** compartilhado pelos microsserviços de negócio (OS Service, Billing Service, Execution Service) da nova arquitetura distribuída. Veja a visão geral em `docs/arquitetura/fase4-visao-geral.md` no repositório `fiap-tech-challenge-app` e a decisão em [`docs/ADRs/ADR-001-papel-fase4.md`](docs/ADRs/ADR-001-papel-fase4.md).
+
 ## Propósito
 
 Função AWS Lambda serverless que autentica usuários por CPF e gera JSON Web Tokens (JWT RS256). Exposta via AWS API Gateway REST, é consumida pela aplicação Spring Boot para autenticação sem estado.
